@@ -16,13 +16,14 @@ import { UserContext } from "../context/UserContext";
 import Logo from "../assets/background.png";
 
 /**importamos las librerias para manejar la base de datos */
-import { initializeApp } from "firebase/app";
-import { firebaseConfig } from "../auth/firebase_config";
-import { getDatabase, ref, push } from "firebase/database";
+import { app } from "../auth/firebase_config";
+import { ref, push, getDatabase } from "firebase/database";
+import {  signInAnonymously, getAuth } from "firebase/auth";
 
 export default function Main(props) {
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const db=getDatabase(app);
+const auth = getAuth(app);
+
   const { unidades, sessionId } = useContext(UserContext);
   const [phone, setPhone] = useState("");
 
@@ -37,6 +38,20 @@ export default function Main(props) {
   const [alarmStation, setAlarmStation] = useState("");
   const [entidad, setEntidad] = useState("");
   const [alarma, setAlarma] = useState(null);
+
+  const handleAnonymousLogin = async () => {
+    try {
+      await signInAnonymously(auth);
+      //console.log("Usuario anónimo autenticado:", auth.currentUser.uid);
+    } catch (error) {
+      console.error("Error al iniciar sesión anónimamente:", error);
+    }
+  };
+  useEffect(() => {
+    handleAnonymousLogin();
+  }, []);
+ 
+
 
   useEffect(() => {
     const getUserData = async () => {

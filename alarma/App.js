@@ -5,8 +5,14 @@ import { PageNavigation } from './src/navigation/PageNavigation';
 import React, { useEffect, useState } from "react";
 import UserState from './src/context/UserState';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeApp } from 'firebase/app';
+import { firebaseConfig } from './src/auth/firebase_config';
 
 export default function App() {
+
+  const app=initializeApp(firebaseConfig);
+
+
   const idcw = "c7af5d528da560b5eb67933e07b8f35558C42593633F11DE5E63FA5AB712B6F48B0BD460";
 
   const [sessionId, setSessionId] = useState(null);
@@ -148,7 +154,7 @@ const [entidad,setEntidad]=useState("");
 
   // Cuando ya todo está OK
   return (
-    <UserState unidades={unidades} sessionId={sessionId}>
+    <UserState unidades={unidades} sessionId={sessionId}  app={app}>
       <NavigationContainer>
         <PageNavigation />
       </NavigationContainer>
