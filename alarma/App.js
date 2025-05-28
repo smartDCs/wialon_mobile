@@ -1,37 +1,58 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { NavigationContainer} from '@react-navigation/native';
 import { PageNavigation } from './src/navigation/PageNavigation';
 import React, { useEffect, useState } from "react";
 import UserState from './src/context/UserState';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {  signInAnonymously, getAuth } from "firebase/auth";
 import { initializeApp } from 'firebase/app';
 import { firebaseConfig } from './src/auth/firebase_config';
+import { getDatabase } from "firebase/database";
+export default function App({navigation}) {
 
-export default function App() {
 
   const app=initializeApp(firebaseConfig);
-
-
+const auth = getAuth(app);
+ const db = getDatabase(app);
   const idcw = "c7af5d528da560b5eb67933e07b8f35558C42593633F11DE5E63FA5AB712B6F48B0BD460";
 
   const [sessionId, setSessionId] = useState(null);
   const [unidades, setUnidades] = useState([]);
   const [loading, setLoading] = useState(true); // <-- Agregamos estado de loading
 const [entidad,setEntidad]=useState("");
-
+const [isFirstLaunch, setIsFirstLaunch] = useState(null);
+  
+  const handleAnonymousLogin = async () => {
+    try {
+      await signInAnonymously(auth);
+     // console.log("Usuario anónimo autenticado:", auth.currentUser);
+    } catch (error) {
+      console.error("Error al iniciar sesión anónimamente:", error);
+    }
+  };
   useEffect(() => {
+    handleAnonymousLogin();
+  }, []);
+ 
+
+useEffect(() => {
     const getUserData = async () => {
     
       const storedEntidad = await AsyncStorage.getItem('entidad');
-     
+      const hasLaunched = await AsyncStorage.getItem('hasLaunched');
       setEntidad(storedEntidad);
+       if (hasLaunched === null) {
+        setIsFirstLaunch(true);
+      } else {
+        setIsFirstLaunch(false);
+      }
     };
     getUserData();
   }, []);
 
 
-  // Hacemos login
+  // Hacemos login en wialon
   useEffect(() => {
     const login = async () => {
       try {
@@ -45,6 +66,7 @@ const [entidad,setEntidad]=useState("");
         });
         const data = await response.json();
         setSessionId(data.eid);
+       
       } catch (error) {
         console.error('Error en login:', error);
       }
@@ -54,6 +76,7 @@ const [entidad,setEntidad]=useState("");
   }, []);
 
   const getUnits = async (unitId) => {
+    
     const paramsUnit = {
       spec: {
         itemsType: "avl_unit",
@@ -99,7 +122,7 @@ const [entidad,setEntidad]=useState("");
           spec: {
             itemsType: "avl_unit_group",
             propName: "rel_user_creator_name",
-            propValueMask: entidad,
+            propValueMask: entidad.trimEnd(),
             sortType: "sys_name"
           },
           force: 1,
@@ -119,6 +142,7 @@ const [entidad,setEntidad]=useState("");
         });
 
         const data = await response.json();
+        console.log("Respuesta de los grupos:",data);
 
         if (data.items && data.items.length > 0) {
           const grupo = data.items[0];
@@ -129,7 +153,9 @@ const [entidad,setEntidad]=useState("");
           
           setLoading(false); // <-- ¡Ya terminó de cargar todo!
         } else {
-          console.error('No se encontraron grupos.');
+        
+          Alert.alert(`No existe ninguna entidad con el nombre de: ${entidad}`);
+     
           setLoading(false);
         }
 
@@ -154,7 +180,7 @@ const [entidad,setEntidad]=useState("");
 
   // Cuando ya todo está OK
   return (
-    <UserState unidades={unidades} sessionId={sessionId}  app={app}>
+    <UserState unidades={unidades} sessionId={sessionId}  app={app} db={db} auth={auth}>
       <NavigationContainer>
         <PageNavigation />
       </NavigationContainer>

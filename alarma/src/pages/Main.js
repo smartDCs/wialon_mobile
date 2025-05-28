@@ -8,7 +8,7 @@ import {
   Linking,
   ImageBackground,
 } from "react-native";
-
+import * as Location from 'expo-location';
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,10 +20,10 @@ import { app } from "../auth/firebase_config";
 import { ref, push, getDatabase } from "firebase/database";
 import {  signInAnonymously, getAuth } from "firebase/auth";
 
-export default function Main(props) {
-  const db=getDatabase(app);
-const auth = getAuth(app);
-
+export default function Main({props,navigation}) {
+const {db, auth}=useContext(UserContext);
+const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
   const { unidades, sessionId } = useContext(UserContext);
   const [phone, setPhone] = useState("");
 
@@ -39,20 +39,20 @@ const auth = getAuth(app);
   const [entidad, setEntidad] = useState("");
   const [alarma, setAlarma] = useState(null);
 
-  const handleAnonymousLogin = async () => {
-    try {
-      await signInAnonymously(auth);
-      //console.log("Usuario anónimo autenticado:", auth.currentUser.uid);
-    } catch (error) {
-      console.error("Error al iniciar sesión anónimamente:", error);
-    }
-  };
-  useEffect(() => {
-    handleAnonymousLogin();
+
+
+useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permiso denegado para acceder a la ubicación');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
   }, []);
- 
-
-
   useEffect(() => {
     const getUserData = async () => {
       const storedPhone = await AsyncStorage.getItem("phone");
@@ -75,8 +75,13 @@ const auth = getAuth(app);
         setPhone(unidad.ph);
       }
     });
+    if (alarma==null){
+      Alert.alert(`No existe ninguna estación llamada: ${alarmStation}`)
+      navigation.navigate("Setup");
+    }
   }, [unidades, alarmStation]);
   const saveAlarm = (evento, motivo) => {
+   
     // Crea un nuevo evento con ID automático
     push(eventosRef, {
       evento: evento,
@@ -87,6 +92,10 @@ const auth = getAuth(app);
       usuario: user,
       telefono: phoneNumber,
       email: email,
+      lat:alarma.pos.y,
+      lng:alarma.pos.x,
+      latu:location?.coords?.latitude,
+      longu:location?.coords?.longitude
     });
   };
 
@@ -128,7 +137,7 @@ const auth = getAuth(app);
       const data = await response.json();
 
       if (data.error) {
-        console.error("Error enviando comando:", data.error);
+      //  console.error("Error enviando comando:", data.error);
         Alert.alert(
           "Error",
           `Error al enviar el comando, intentelo nuevamente`,
@@ -137,13 +146,13 @@ const auth = getAuth(app);
         );
         return null;
       } else {
-        console.log("Respuesta del comando:", data);
+      //  console.log("Respuesta del comando:", data);
         saveAlarm(evento, motivo);
       }
 
       return data;
     } catch (error) {
-      console.error("Error en unit/exec_cmd:", error);
+     // console.error("Error en unit/exec_cmd:", error);
       return null;
     }
   };
@@ -178,14 +187,16 @@ const mostrarAlertaConOpciones = (accion) => {
                 "Por robo"
               );
               break;
+           /*
               case "activar perifoneo":
-                sendCommand(alarma.id, alarma.cmds[2].n, alarma.cmds[2].p, "Perifoneo activado","Por robo");
+                sendCommand(alarma.id, alarma.cmds[2].n, alarma.cmds[2].p, "Perifoneo activado","");
                
                 break;
               case "desactivar perifoneo":
-                sendCommand(alarma.id, alarma.cmds[3].n, alarma.cmds[3].p, "Perifoneo desactivado","Por robo");
+                sendCommand(alarma.id, alarma.cmds[3].n, alarma.cmds[3].p, "Perifoneo desactivado","");
                
                 break;
+                */
             default:
               break;
           }
@@ -216,6 +227,7 @@ const mostrarAlertaConOpciones = (accion) => {
                 "Por incendio"
               );
               break;
+            /*
               case "activar perifoneo":
                 sendCommand(alarma.id, alarma.cmds[2].n, alarma.cmds[2].p, "Perifoneo activado","Por incendio");
                
@@ -224,6 +236,7 @@ const mostrarAlertaConOpciones = (accion) => {
                 sendCommand(alarma.id, alarma.cmds[3].n, alarma.cmds[3].p, "Perifoneo desactivado","Por incendio");
                
                 break;
+                */
             default:
               break;
           }
@@ -253,6 +266,7 @@ const mostrarAlertaConOpciones = (accion) => {
                 "Prueba"
               );
               break;
+             /*
               case "activar perifoneo":
                 sendCommand(alarma.id, alarma.cmds[2].n, alarma.cmds[2].p, "Perifoneo activado","Prueba");
                
@@ -261,6 +275,7 @@ const mostrarAlertaConOpciones = (accion) => {
                 sendCommand(alarma.id, alarma.cmds[3].n, alarma.cmds[3].p, "Perifoneo desactivado","Prueba");
                
                 break;
+                */
             default:
               break;
           }
@@ -292,9 +307,9 @@ const mostrarAlertaConOpciones = (accion) => {
      */}
         <View
           style={{
-            padding: 30,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            borderRadius: 50,
+            padding: 20,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            borderRadius: 20,
             flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
@@ -304,13 +319,16 @@ const mostrarAlertaConOpciones = (accion) => {
     View que contiene los botones de la alarma
      */}
           <View>
-            <Text style={{ color: "white", fontSize: 14, marginBottom: 20 }}>
-              Alarma {alarmStation}
+            <Text style={{ color: "white", fontSize: 14, marginBottom: 20, paddingTop:20 }}>
+              {alarmStation}
             </Text>
           </View>
           <View style={styles.row2col}>
             <TouchableOpacity
-              style={[styles.btnFlash, { backgroundColor: "orange" }]}
+              style={[styles.btnFlash, { backgroundColor: "orange"
+              
+
+               }]}
               onPress={() => {
                 mostrarAlertaConOpciones("activar alarma");
               }}
@@ -319,6 +337,7 @@ const mostrarAlertaConOpciones = (accion) => {
                 name="alarm-light"
                 size={32}
                 color="white"
+                
               />
 
               <Text style={{ color: "white" }}>Activar</Text>
@@ -351,9 +370,10 @@ const mostrarAlertaConOpciones = (accion) => {
             <TouchableOpacity
               style={[styles.btnFlash, { backgroundColor: "green" }]}
               onPress={() => {
-                mostrarAlertaConOpciones("activar perifoneo");
+                //mostrarAlertaConOpciones("activar perifoneo");
               
-                
+                  sendCommand(alarma.id, alarma.cmds[2].n, alarma.cmds[2].p, "Perifoneo activado","");
+                console.log("latitud:", location?.coords?.latitude, "longitud:", location?.coords?.longitude);
                 //console.log("telefono",phone)
                 if (phone) {
                   Linking.openURL(`tel:${phone}`);
@@ -371,8 +391,8 @@ const mostrarAlertaConOpciones = (accion) => {
             <TouchableOpacity
               style={[styles.btnFlash, { backgroundColor: "red" }]}
               onPress={() => {
-                mostrarAlertaConOpciones("desactivar perifoneo");
-              
+               // mostrarAlertaConOpciones("desactivar perifoneo");
+                sendCommand(alarma.id, alarma.cmds[3].n, alarma.cmds[3].p, "Perifoneo desactivado","");
                
               }}
             >
@@ -402,13 +422,15 @@ const styles = StyleSheet.create({
     height: 64,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
+    borderRadius: 10,
     bottom: 10,
-    borderColor: "rgba(120, 120, 120, 0.5)",
-    borderWidth: 1.5,
+    borderColor: "rgba(10, 10, 10, 0.8)",
+    borderWidth: 4,
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
     // Sombra en iOS
     shadowColor: "#fff",
-    shadowOffset: { width: 20, height: 20 },
+    shadowOffset: { width: 2, height: 20 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
 

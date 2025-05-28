@@ -20,7 +20,7 @@ const Drawer = createDrawerNavigator();
 function DrawerNavigator() {
   return (
     <Drawer.Navigator drawerContent={(props) => <MenuItems {...props} />}>
-      <Drawer.Screen name="Inicio" component={Main} />
+      <Drawer.Screen name="Main" component={Main} />
   
       <Drawer.Screen name="Setup" component={InitialSetup} />
     </Drawer.Navigator>
